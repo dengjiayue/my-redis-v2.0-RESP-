@@ -167,7 +167,7 @@ func (s *Server) handleConnection(conn net.Conn) {
 			continue
 		}
 
-		// fmt.Printf("Request received:%v\n", data)
+		fmt.Printf("Request received:%v\n", data)
 
 		if len(data) == 0 {
 			continue
@@ -180,6 +180,8 @@ func (s *Server) handleConnection(conn net.Conn) {
 			s.Request(rsp, reqdata)
 			// 读取处理结果
 			rspData := <-rsp
+			//将chan放回空闲队列
+			s.DisengagedQueue <- rsp
 			// 发送数据
 			SendSuccessResponse(conn, rspData[0])
 			// fmt.Println("Response sent:", string(rspData))

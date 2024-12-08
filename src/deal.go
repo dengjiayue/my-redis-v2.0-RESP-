@@ -26,8 +26,6 @@ func (s *Server) Set(data []string, ch chan []string) {
 	s.M[data[0]] = data[1]
 	// 返回结果(0代表成功)
 	ch <- []string{"OK"}
-	//放回空闲队列
-	s.DisengagedQueue <- ch
 }
 
 func (s *Server) Get(data string, ch chan []string) {

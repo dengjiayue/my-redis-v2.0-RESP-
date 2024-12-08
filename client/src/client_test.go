@@ -86,6 +86,25 @@ func BenchmarkMyRedisConcurrencyRead(b *testing.B) {
 	// BenchmarkMyRedisConcurrencyRead-8   	   89955	     12198 ns/op	     512 B/op	      15 allocs/op
 }
 
+// 单元测试
+func TestMyRedis2Read(t *testing.T) {
+	conn, err := net.Dial("tcp", "localhost:8080")
+	if err != nil {
+		panic(err)
+	}
+	defer conn.Close()
+	reader := bufio.NewReader(conn)
+	// 写入数据
+	conn.Write([]byte("*2\r\n$3\r\nget\r\n$4\r\nname\r\n"))
+	// 读取数据 (+{val}\r\n)
+	resp, err := reader.ReadString('\n')
+	if err != nil {
+		panic(err)
+	}
+	fmt.Println(resp)
+}
+
+// 压测my redis 2.0 (读)
 func BenchmarkMyRedisWithRESP(b *testing.B) {
 	conn, err := net.Dial("tcp", "localhost:8080")
 	if err != nil {
@@ -103,5 +122,66 @@ func BenchmarkMyRedisWithRESP(b *testing.B) {
 			panic(err)
 		}
 	}
+	// BenchmarkMyRedisWithRESP-8         38745             30267 ns/op              32 B/op          2 allocs/op
+}
 
+// 并发压测my redis 2.0 (读)
+func BenchmarkMyRedisWithRESPConcurrencyRead(b *testing.B) {
+	conn, err := net.Dial("tcp", "localhost:8080")
+	if err != nil {
+		panic(err)
+	}
+	defer conn.Close()
+	reader := bufio.NewReader(conn)
+	//开始计时
+	b.StartTimer()
+	b.RunParallel(func(pb *testing.PB) {
+		for pb.Next() {
+			conn.Write([]byte("*2\r\n$3\r\nget\r\n$4\r\nname\r\n"))
+			// 读取数据 (+{val}\r\n)
+			_, err := reader.ReadString('\n')
+			if err != nil {
+				panic(err)
+			}
+		}
+	})
+}
+
+// 单元测试(写)
+func TestMyRedis2Write(t *testing.T) {
+	conn, err := net.Dial("tcp", "localhost:8080")
+	if err != nil {
+		panic(err)
+	}
+	defer conn.Close()
+	reader := bufio.NewReader(conn)
+	// 写入数据
+	conn.Write([]byte("*3\r\n$3\r\nset\r\n$4\r\nname\r\n$8\r\nzhangsan\r\n"))
+	// 读取数据 (+{val}\r\n)
+	resp, err := reader.ReadString('\n')
+	if err != nil {
+		panic(err)
+	}
+	fmt.Println(resp)
+}
+
+// 压测my redis 2.0 (写)
+func BenchmarkMyRedisWithRESPWrite(b *testing.B) {
+	conn, err := net.Dial("tcp", "localhost:8080")
+	if err != nil {
+		panic(err)
+	}
+	defer conn.Close()
+	reader := bufio.NewReader(conn)
+	//开始计时
+	b.StartTimer()
+	for i := 0; i < b.N; i++ {
+		conn.Write([]byte("*3\r\n$3\r\nset\r\n$4\r\nname\r\n$8\r\nzhangsan\r\n"))
+		// 读取数据 (+{val}\r\n)
+		_, err := reader.ReadString('\n')
+		if err != nil {
+			panic(err)
+		}
+	}
+	//BenchmarkMyRedisWithRESPWrite-8            33255             33665 ns/op             56 B/op           2 allocs/op
 }
