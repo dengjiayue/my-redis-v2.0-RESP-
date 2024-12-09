@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"io"
 	"log"
-	"my_redis/public"
 	"net"
 	"strconv"
 	"strings"
@@ -104,52 +103,6 @@ func (s *Server) Run(address string) {
 	}
 }
 
-func (s *Server) handleClient(conn net.Conn) {
-	defer conn.Close()
-
-	// 创建读取器来读取客户端请求
-	reader := bufio.NewReader(conn)
-
-	for {
-		// conn.Write([]byte("+ok\r\n"))
-		// 读取客户端请求的行数
-		num, err := ParseArrayLength(reader)
-		// fmt.Printf("num: %d\n", num)
-		if err != nil {
-			if err == io.EOF {
-				return
-			}
-			fmt.Printf("err: %v\n", err)
-			continue
-		}
-
-		// 读取数据
-		data := make([]string, num)
-		for i := 0; i < num; i++ {
-			data[i], err = ParseData(reader)
-			if err != nil {
-				SendErrorResponse(conn, err.Error())
-				fmt.Printf("Error reading data: %v\n", err)
-				break
-			}
-		}
-		go func(reqdata []string) { // 获取一个请求chan
-			rsp := s.GetChan()
-			// 向通道写入数据
-			s.Request(rsp, reqdata)
-			// 读取通道数据
-			rspData := <-rsp
-			// 发送数据
-			SendSuccessResponse(conn, rspData[0])
-			if err != nil {
-				log.Println("Error writing to connection:", err)
-			}
-			// fmt.Println("Response sent:", string(rspData))
-		}(data)
-
-	}
-}
-
 func (s *Server) handleConnection(conn net.Conn) {
 	defer conn.Close()
 
@@ -183,7 +136,11 @@ func (s *Server) handleConnection(conn net.Conn) {
 			//将chan放回空闲队列
 			s.DisengagedQueue <- rsp
 			// 发送数据
-			SendSuccessResponse(conn, rspData[0])
+			_, err := conn.Write([]byte(rspData[0]))
+			if err != nil {
+				fmt.Println("Error sending response:", err)
+				return
+			}
 			// fmt.Println("Response sent:", string(rspData))
 		}(append([]string(nil), data...))
 	}
@@ -214,33 +171,4 @@ func getRequstData(reader *bufio.Reader) ([]string, error) {
 	// 打印解析后的消息
 	// fmt.Println("解析到的消息:", messages)
 	return messages, nil
-}
-
-// uint32转bytes
-func Uint32ToBytes(n uint32) []byte {
-	return []byte{byte(n >> 24), byte(n >> 16), byte(n >> 8), byte(n)}
-}
-
-// bytes转uint32
-func BytesToUint32(b []byte) uint32 {
-	return uint32(b[0])<<24 | uint32(b[1])<<16 | uint32(b[2])<<8 | uint32(b[3])
-}
-
-// 解码数据头
-func ReadHeader(reader io.Reader) (uint32, uint32, error) {
-
-	b := make([]byte, 8)
-	_, err := reader.Read(b)
-	if err != nil {
-		return 0, 0, err
-	}
-
-	l, t := public.Uncode(b)
-	return l, t, nil
-}
-
-// 打包数据(长度(4byte)+tag+数据)
-func PackData(tag uint32, data []byte) []byte {
-	b := public.Encode(tag, data)
-	return b
 }
