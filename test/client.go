@@ -287,7 +287,7 @@ func (c *Client) Zadd() {
 	fmt.Println(data)
 }
 
-// 有序集合读
+// 有序集合写
 func TZadd() {
 	conn := NewTcpConn()
 	defer conn.Close()

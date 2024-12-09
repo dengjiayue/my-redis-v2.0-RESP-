@@ -20,7 +20,7 @@ func TestWriteString(t *testing.T) {
 func TestSendTcp(t *testing.T) {
 	// TSet()
 	//+OK
-	TGet()
+	// TGet()
 	//$3\r\nfoo\r\n
 	// THget()
 	//$3\r\nbar\r\n
