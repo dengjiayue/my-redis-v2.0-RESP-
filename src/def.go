@@ -79,6 +79,7 @@ type Server struct {
 	MList           map[string][]string
 	MSet            map[string]map[string]bool
 	MZset           map[string]*Zset
+	Ex              map[string]int64 // 过期时间字典
 	// MStream         map[string]map[string]string
 	// MaxChan         uint32                  // 最大通道数量
 }

@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"log"
 	"net"
+	"time"
 
 	"github.com/go-redis/redis/v8"
 )
@@ -20,7 +21,7 @@ type Client struct {
 
 func NewClient() *Client {
 	client := redis.NewClient(&redis.Options{
-		Addr:         "localhost:" + PORT2,
+		Addr:         "localhost:" + PORT1,
 		PoolSize:     1,
 		MinIdleConns: 1,
 	})
@@ -72,6 +73,43 @@ func (c *Client) Set() {
 		log.Fatal(err)
 	}
 	fmt.Println(data)
+}
+
+func (c *Client) Set2() {
+	ctx := context.Background()
+	data, err := c.Conn.Set(ctx, "test", "tom", 1*time.Minute).Result()
+	if err != nil {
+		log.Fatal(err)
+	}
+	log.Println(data)
+}
+
+func (c *Client) Get2() {
+	ctx := context.Background()
+	data, err := c.Conn.Get(ctx, "test").Result()
+	if err != nil {
+		log.Fatal(err)
+	}
+	log.Println(data)
+}
+
+func (c *Client) Hset2() {
+	ctx := context.Background()
+	data, err := c.Conn.HSet(ctx, "test", "name", "tom").Result()
+	if err != nil {
+		log.Fatal(err)
+	}
+	log.Println(data)
+}
+
+// 字符串读
+func (c *Client) Hgetall2() {
+	ctx := context.Background()
+	data, err := c.Conn.HGetAll(ctx, "test").Result()
+	if err != nil {
+		log.Fatal(err)
+	}
+	log.Println(data)
 }
 
 // 使用tcp发送请求

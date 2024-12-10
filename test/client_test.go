@@ -15,6 +15,17 @@ func TestWriteString(t *testing.T) {
 	c.Set()
 }
 
+// 相同key测试:报错:WRONGTYPE Operation against a key holding the wrong kind of value(不能对一个key进行不同类型的操作)
+func TestWriteSamKey(t *testing.T) {
+	c := NewClient()
+	defer c.Conn.Close()
+	c.Set2()
+	c.Hset2()
+	c.Get2()
+	c.Hgetall2()
+
+}
+
 // string 读
 // 源码写,输出响应数据
 func TestSendTcp(t *testing.T) {
