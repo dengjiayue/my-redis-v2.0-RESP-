@@ -2,6 +2,7 @@ package mytimewheel
 
 import (
 	"container/list"
+	"log"
 	"time"
 )
 
@@ -9,6 +10,7 @@ var tw *TimeWheel
 
 func init() {
 	tw = New(time.Second, 3000)
+	tw.Start()
 }
 
 // 实现时间轮算法
@@ -67,7 +69,6 @@ func (tw *TimeWheel) initSlots() {
 
 // 启动时间轮
 func (tw *TimeWheel) Start() {
-
 	tw.Ticker = time.NewTicker(tw.Interval)
 	go tw.run()
 }
@@ -92,17 +93,18 @@ func (tw *TimeWheel) run() {
 
 // 处理任务
 func (tw *TimeWheel) handelTask() {
+	// log.Printf("时间轮执行任务: %d", tw.CurrentPos)
 	taskList := tw.Slots[tw.CurrentPos]
-	if taskList.Len() == 0 {
-		return
-	}
+	// log.Printf("任务数量: %d", taskList.Len())
 	for e := taskList.Front(); e != nil; e = e.Next() {
 		task := e.Value.(*task)
-		task.circle--
 		if task.circle == 0 {
-			task.job()
+			go task.job()
+			log.Printf("任务执行完毕: %s", task.key)
 			delete(tw.Locations, task.key)
 			taskList.Remove(e)
+		} else {
+			task.circle--
 		}
 	}
 	tw.CurrentPos = (tw.CurrentPos + 1) % tw.SlotNum
@@ -123,6 +125,7 @@ func (tw *TimeWheel) addTask(task *task) {
 		slotIdx:  pos,
 		taskElem: e,
 	}
+	log.Printf("任务添加成功: %s", task.key)
 }
 
 // 删除任务

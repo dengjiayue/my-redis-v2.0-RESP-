@@ -8,7 +8,7 @@ import (
 func TestTimeWheel(t *testing.T) {
 	ch := make(chan time.Time)
 	beginTime := time.Now()
-	Delay(3*time.Second, "", func() {
+	Delay(time.Second, "", func() {
 		ch <- time.Now()
 	})
 	execAt := <-ch
