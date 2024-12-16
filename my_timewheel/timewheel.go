@@ -1,8 +1,8 @@
 package mytimewheel
 
 import (
-	"container/list"
 	"log"
+	mylist "my_redis/my_list"
 	"time"
 )
 
@@ -17,7 +17,7 @@ func init() {
 type TimeWheel struct {
 	Interval       time.Duration       //时间格的基本时间跨度
 	Ticker         *time.Ticker        // 时间轮的计时器
-	Slots          []*list.List        //时间格
+	Slots          []*mylist.List      //时间格
 	CurrentPos     int                 //当前指针，指向时间格的下标
 	Locations      map[string]location //记录任务（key）所在的位置
 	SlotNum        int                 //时间格的数量
@@ -29,8 +29,7 @@ type TimeWheel struct {
 
 // 任务位置
 type location struct {
-	slotIdx  int           //时间格下标
-	taskElem *list.Element //指向双向链表中任务的下标
+	taskElem *mylist.Node //指向双向链表中任务节点的指针
 }
 
 // 任务
@@ -48,7 +47,7 @@ func New(interval time.Duration, slotNum int) *TimeWheel {
 	}
 	tw := &TimeWheel{
 		Interval:       interval,
-		Slots:          make([]*list.List, slotNum),
+		Slots:          make([]*mylist.List, slotNum),
 		CurrentPos:     0,
 		Locations:      make(map[string]location),
 		SlotNum:        slotNum,
@@ -63,7 +62,7 @@ func New(interval time.Duration, slotNum int) *TimeWheel {
 // 初始化时间格任务链表
 func (tw *TimeWheel) initSlots() {
 	for i := 0; i < len(tw.Slots); i++ {
-		tw.Slots[i] = list.New()
+		tw.Slots[i] = mylist.New()
 	}
 }
 
@@ -94,20 +93,26 @@ func (tw *TimeWheel) run() {
 // 处理任务
 func (tw *TimeWheel) handelTask() {
 	// log.Printf("时间轮执行任务: %d", tw.CurrentPos)
-	taskList := tw.Slots[tw.CurrentPos]
+	taskList := tw.Slots[tw.CurrentPos%tw.SlotNum]
+	v := taskList.Traverse()
+	log.Printf("时间 %d任务数量: %d", tw.CurrentPos, len(v))
 	// log.Printf("任务数量: %d", taskList.Len())
-	for e := taskList.Front(); e != nil; e = e.Next() {
-		task := e.Value.(*task)
+	for {
+		e := taskList.PopHead()
+		if e == nil {
+			break
+		}
+		log.Printf("任务: %v\n", e.(*task))
+		task := e.(*task)
 		if task.circle == 0 {
 			go task.job()
 			log.Printf("任务执行完毕: %s", task.key)
 			delete(tw.Locations, task.key)
-			taskList.Remove(e)
 		} else {
 			task.circle--
 		}
 	}
-	tw.CurrentPos = (tw.CurrentPos + 1) % tw.SlotNum
+	tw.CurrentPos++
 }
 
 // 添加任务
@@ -119,13 +124,16 @@ func (tw *TimeWheel) addTask(task *task) {
 	}
 	// 计算任务所在的位置
 	pos := (tw.CurrentPos + int(task.delay/tw.Interval)) % tw.SlotNum
-	taskList := tw.Slots[pos]
-	e := taskList.PushBack(task)
+	// 计算任务的循环次数(圈数=(当前时间格+任务延迟时间)/时间格数量)(舍弃小数,只取整数部分)
+	circle := (tw.CurrentPos + int(task.delay/tw.Interval)) / tw.SlotNum
+
+	task.circle = circle
+
+	e := tw.Slots[pos].AddToHead(task)
 	tw.Locations[task.key] = location{
-		slotIdx:  pos,
 		taskElem: e,
 	}
-	log.Printf("任务添加成功: %s", task.key)
+	log.Printf("%d 任务添加成功: %s", pos, task.key)
 }
 
 // 删除任务
@@ -135,7 +143,11 @@ func (tw *TimeWheel) deleteTask(key string) {
 		return
 	}
 	loc := tw.Locations[key]
-	taskList := tw.Slots[loc.slotIdx]
-	taskList.Remove(loc.taskElem)
+	err := loc.taskElem.Remove()
+	if err != nil {
+		log.Printf("删除任务失败: %s", key)
+		return
+	}
+	log.Printf("任务删除成功: %s", key)
 	delete(tw.Locations, key)
 }
